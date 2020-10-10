@@ -151,3 +151,1224 @@
 		</plugins>
 	</build>
 </project>
+
+
+---base--
+
+package com.bki.ot.uwa.automation.baseconfig;
+
+import org.openqa.selenium.WebDriver;
+import org.openqa.selenium.chrome.ChromeDriver;
+import org.openqa.selenium.chrome.ChromeOptions;
+import org.openqa.selenium.edge.EdgeDriver;
+import org.openqa.selenium.edge.EdgeOptions;
+import org.openqa.selenium.ie.InternetExplorerDriver;
+import org.openqa.selenium.ie.InternetExplorerOptions;
+import com.bki.ot.uwa.automation.filereadermanager.FileReaderManager;
+import io.github.bonigarcia.wdm.WebDriverManager;
+
+public class BaseConfig {
+	private WebDriver driver = null;
+	String driverPath = null;
+
+	public BaseConfig() {
+		driverPath = FileReaderManager.getFileReaderManagerInstance().getConfigInstance().getDriverPath();
+	}
+
+	public WebDriver getDriver() {
+		if (driver == null) {
+			driver = Initialization();
+		}
+		return driver;
+
+	}
+
+	private WebDriver Initialization() {
+		String browserType = System.getProperty("browserType");
+		if ("chrome".equalsIgnoreCase(browserType)) {
+			try {
+				WebDriverManager.chromedriver().setup();
+				ChromeOptions chrome = new ChromeOptions();
+				chrome.addArguments("--disable-infobars");
+				String chromeOptionsArg = System.getProperty("chromeOptionsArg");
+				if ("--headless".equalsIgnoreCase(chromeOptionsArg)) {
+					chrome.addArguments("--headless");
+					chrome.addArguments("window-size=1600x900");
+
+				}
+				driver = new ChromeDriver(chrome);
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
+		} else if ("ie".equalsIgnoreCase(browserType)) {
+			try {
+				WebDriverManager.iedriver().setup();
+				InternetExplorerOptions options = new InternetExplorerOptions();
+				options.setCapability("nativeEvents", false);
+				options.setCapability("unexpectedAlertBehaviour", "accept");
+				options.setCapability("ignoreZoomSetting", true);
+				options.setCapability("disable-popup-blocking", true);
+				options.setCapability("requiredWindowFocus", true);
+				driver = new InternetExplorerDriver(options);
+
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
+		} else if ("edge".equalsIgnoreCase(browserType)) {
+			try {
+				System.setProperty("webdriver.edge.driver", driverPath);
+				EdgeOptions options = new EdgeOptions();
+				driver = new EdgeDriver(options);
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
+		} else {
+			throw new RuntimeException("Browser name is not specified ");
+		}
+		return driver;
+	}
+
+}
+----end base---
+
+
+--file reader--
+
+package com.bki.ot.uwa.automation.dataprovider;
+
+import java.io.BufferedReader;
+import java.io.FileNotFoundException;
+import java.io.FileReader;
+import java.io.IOException;
+import java.util.Properties;
+
+public class ConfigFileReader {
+
+	private Properties properties;
+	private final String propertyFilePath = "src/test/resources/config.properties";
+	private final String userdir="C:\\AutomationUA\\com.bki.ot.UnderwritingAssist-sprint5-user login\\src\\test\\resources\\files\\";
+
+	public ConfigFileReader() {
+		BufferedReader reader;
+		try {
+			reader = new BufferedReader(new FileReader(propertyFilePath));
+			properties = new Properties();
+			try {
+				properties.load(reader);
+				reader.close();
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+		} catch (FileNotFoundException e) {
+			e.printStackTrace();
+			throw new RuntimeException("Config.properties not found at " + propertyFilePath);
+		}
+	}
+	public String getUrl() {
+		String url = properties.getProperty("url");
+		if (url != null)
+			return url;
+		else
+			throw new RuntimeException("URL not specified in the Config.properties file.");
+	}
+
+	public String getDriverPath() {
+		String driverPath = properties.getProperty("driverPath");
+		if (driverPath != null)
+			return driverPath;
+		else
+			throw new RuntimeException("Driver path not specified in the Config.properties file.");
+	}
+	public String getUploadFile() {
+		return userdir+properties.getProperty("uploadfile");
+				
+	}
+	public String getUploadDoc1() {
+		return userdir+properties.getProperty("uploadDoc1");
+				
+	}
+	public String getUploadDoc2() {
+		return userdir+properties.getProperty("uploadDoc2");
+	
+			
+	}
+	public String getUserName() {
+		return properties.getProperty("username");
+				
+	}
+	public String getPassword() {
+		return properties.getProperty("password");
+				
+	}
+}
+
+
+--end config--
+
+
+
+---exdtedn report config--\\
+
+package com.bki.ot.uwa.automation.extentreport;
+
+import com.aventstack.extentreports.ExtentReports;
+import com.aventstack.extentreports.ExtentTest;
+import com.aventstack.extentreports.reporter.ExtentHtmlReporter;
+import com.aventstack.extentreports.reporter.configuration.Theme;
+import java.sql.Timestamp;
+
+public class ExtentReportConfig {
+
+	public static ExtentHtmlReporter report;
+	public static ExtentReports extent;
+	public static ExtentTest test;
+
+	public static ExtentReports extentRepotSetup() {
+		String timestamp = new Timestamp(System.currentTimeMillis()).toString();
+		// remove the seconds part
+		timestamp = timestamp.substring(0, timestamp.length() - 6).replaceAll(":", "");
+		if (extent != null)
+			return extent;
+		report = new ExtentHtmlReporter("src/test/resources/output/extentreport/ExtentReport" + timestamp + ".html");
+		report.config().setDocumentTitle("Underwriting Assist");
+		report.config().setReportName("Underwriting Assist");
+		report.config().setTheme(Theme.DARK);
+		report.config().setTimeStampFormat("MMM dd, yyyy HH:mm:ss");
+		report.config().enableTimeline(true);
+		report.start();
+		extent = new ExtentReports();
+
+		extent.attachReporter(report);
+		return extent;
+	}
+
+}
+
+
+--end ext report config---
+
+
+--start filereader manager--
+package com.bki.ot.uwa.automation.filereadermanager;
+
+import com.bki.ot.uwa.automation.dataprovider.ConfigFileReader;
+import com.bki.ot.uwa.automation.filereadermanager.FileReaderManager;
+
+public class FileReaderManager {
+	private static FileReaderManager filereadmanager;
+	private static ConfigFileReader configfilereader;
+
+	public static FileReaderManager getFileReaderManagerInstance() {
+		return (filereadmanager == null) ? new FileReaderManager() : filereadmanager;
+	}
+
+	public ConfigFileReader getConfigInstance() {
+		return (configfilereader == null) ? new ConfigFileReader() : configfilereader;
+	}
+}
+
+
+-end file reader manger--
+
+--start pageobjectmanager 
+
+package com.bki.ot.uwa.automation.pageobjectmanager;
+
+
+import com.bki.ot.uwa.automation.pageobjects.GenericPage;
+import com.bki.ot.uwa.automation.pageobjects.LoanLandingPage;
+import com.bki.ot.uwa.automation.pageobjects.MyPipelinePage;
+import com.bki.ot.uwa.automation.stepdefinitions.CommonMethods;
+import org.openqa.selenium.WebDriver;
+
+public class PageObjectManager {
+
+	private WebDriver driver;
+	private GenericPage genericPage;
+	private CommonMethods commonMethods;
+	private MyPipelinePage myPipelinePage;
+	private LoanLandingPage loanLandingPage;
+		
+
+	public PageObjectManager(WebDriver driver) {
+		this.driver = driver;
+	}
+
+	public GenericPage getGenericPage() {
+		return (genericPage == null) ? genericPage = new GenericPage(driver) : genericPage;
+		
+	}
+	public CommonMethods getCommonMethods() {
+		return (commonMethods == null) ? commonMethods = new CommonMethods(driver) : commonMethods;
+		
+	}
+	public MyPipelinePage getmyPipelinePage() {
+		return (myPipelinePage == null) ? myPipelinePage = new MyPipelinePage(driver) : myPipelinePage;
+		
+	}
+	
+	public LoanLandingPage getloanLandingPage() {
+		return (loanLandingPage == null) ? loanLandingPage = new LoanLandingPage(driver) : loanLandingPage;
+		
+	}
+	
+	
+}
+--end page object manager---
+
+--starte generic ---
+package com.bki.ot.uwa.automation.pageobjects;
+
+import org.openqa.selenium.WebDriver;
+import org.openqa.selenium.WebElement;
+import org.openqa.selenium.support.FindBy;
+import org.openqa.selenium.support.PageFactory;
+
+public class GenericPage {
+	WebDriver driver;
+
+	public GenericPage(WebDriver driver) {
+		this.driver = driver;
+		PageFactory.initElements(driver, this);
+
+	}
+
+	
+	@FindBy(xpath = "(//*[@class='pipeline-container']/h1 | //*[@class='loan-number'])")
+	public WebElement GenericPage_PageTitle;
+	
+	
+	@FindBy(xpath = "//*[@id='userNameInput']")
+	public WebElement GenericPage_Username;
+	
+	@FindBy(xpath = "//*[@id='passwordInput']")
+	public WebElement GenericPage_Password;
+	@FindBy(xpath = "//*[@id='openingMessage']")
+	public WebElement GenericPage_Signout_page;
+	
+	@FindBy(xpath = "//*[@id='errorText']")
+	public WebElement GenericPage_LoginError_Msg;
+	
+	@FindBy(xpath = "//*[@id='submitButton']")
+	public WebElement GenericPage_Signin_button;
+	@FindBy(xpath = "//*[@class='header-container']/following::*[contains(text(),'Log-out')]")
+	public WebElement GenericPage_Logout;
+	@FindBy(xpath = "//*[@class='header-container']/descendant::*[@data-icon='caret-down']")
+	public WebElement GenericPage_UserName_dropdown_option;
+	
+	@FindBy(xpath = "//*[@class='model-header']")
+	public WebElement GenericPage_Upload_PopUp_title;
+	
+	}
+
+---end generic--
+
+
+---step common code--
+
+package com.bki.ot.uwa.automation.stepdefinitions;
+
+import java.io.File;
+import java.sql.Timestamp;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.List;
+import org.openqa.selenium.OutputType;
+import org.openqa.selenium.TakesScreenshot;
+import org.openqa.selenium.WebDriver;
+import org.openqa.selenium.WebElement;
+import org.openqa.selenium.io.FileHandler;
+import org.openqa.selenium.support.PageFactory;
+import org.openqa.selenium.support.ui.ExpectedConditions;
+import com.aventstack.extentreports.ExtentTest;
+import com.aventstack.extentreports.Status;
+import com.bki.ot.uwa.automation.filereadermanager.FileReaderManager;
+import com.bki.ot.uwa.automation.testcontext.TestContext;
+
+
+
+public class CommonMethods {
+	WebDriver driver;
+	public static String timeStamp;
+	Hooks hook;
+	ExtentTest loginfo = null;
+	TestContext testContext;
+	String url = null;
+	public CommonMethods(WebDriver driver) {
+		this.driver = driver;
+		
+		PageFactory.initElements(driver, this);
+
+	}
+	
+	public CommonMethods(TestContext context) {
+		testContext = context;
+		hook = new Hooks(context);
+		url = FileReaderManager.getFileReaderManagerInstance().getConfigInstance().getUrl();
+
+	}
+
+		public String addScreenshot(TestContext testContext) throws Exception {
+		SimpleDateFormat sdf = new SimpleDateFormat("dd-MM-yy-mm-hh-ss");
+		Date d = new Date();
+		String fname = sdf.format(d) + ".png";
+		File src = ((TakesScreenshot) testContext.getBaseConfigInstance().getDriver()).getScreenshotAs(OutputType.FILE);
+		File dest = new File("src/test/resources/output/extentreport/" + fname);
+		FileHandler.copy(src, dest);
+		return fname;
+	}
+
+	public String timeStamp() {
+		timeStamp = new Timestamp(System.currentTimeMillis()).toString();
+		timeStamp = timeStamp.substring(0, timeStamp.length() - 6).replaceAll(":", "");
+		return timeStamp;
+	}
+	public void selectEqualCaseIgnoreListValue(List<WebElement> elements, String Value) throws Exception {
+		
+		hook.wait.until(
+				ExpectedConditions.visibilityOfAllElements(elements));
+		for (int i = 0; i < elements.size(); i++) {
+			if (elements.get(i).getText().equalsIgnoreCase(Value)) {
+				loginfo.log(Status.INFO, "Successfull clicked on"+ elements.get(i).getText());
+				elements.get(i).click();
+				break;
+			}
+		}
+	}
+		
+	public void click(WebElement element) {
+		hook.wait.until(ExpectedConditions.visibilityOf(element));
+		hook.wait.until(ExpectedConditions.elementToBeClickable(element));
+		element.click();
+	}
+
+	public void sendKeys(WebElement element, String value) {
+		hook.wait.until(ExpectedConditions.visibilityOf(element));
+		hook.wait.until(ExpectedConditions.elementToBeClickable(element));
+		element.sendKeys(value);
+	}
+	
+	
+	
+}
+
+--end comman--
+
+
+--genric step def--
+package com.bki.ot.uwa.automation.stepdefinitions;
+
+import org.openqa.selenium.JavascriptExecutor;
+import org.openqa.selenium.support.ui.ExpectedConditions;
+import org.testng.Assert;
+import com.aventstack.extentreports.ExtentTest;
+import com.aventstack.extentreports.GherkinKeyword;
+import com.aventstack.extentreports.Status;
+import com.aventstack.extentreports.gherkin.model.Feature;
+import com.aventstack.extentreports.gherkin.model.Scenario;
+import com.bki.ot.uwa.automation.extentreport.ExtentReportConfig;
+import com.bki.ot.uwa.automation.filereadermanager.FileReaderManager;
+import com.bki.ot.uwa.automation.testcontext.TestContext;
+import com.google.common.collect.Ordering;
+import com.aventstack.extentreports.markuputils.ExtentColor;
+import com.aventstack.extentreports.markuputils.MarkupHelper;
+import io.cucumber.java.en.Given;
+import io.cucumber.java.en.Then;
+import io.cucumber.java.en.And;
+import io.cucumber.java.en.When;
+import io.cucumber.datatable.DataTable;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+
+public class GenericStepDef extends ExtentReportConfig {
+
+	Hooks hook;
+	TestContext testContext;
+	String url = null;
+	public static String fname;
+
+	public GenericStepDef(TestContext context) {
+		testContext = context;
+		hook = new Hooks(context);
+		url = FileReaderManager.getFileReaderManagerInstance().getConfigInstance().getUrl();
+
+	}
+
+	@Given("^Launch UWA URL$")
+	public void LaunchUWAURL() throws Exception {
+		ExtentTest loginfo = null;
+		try {
+			test = extent.createTest(Scenario.class, hook.getScenarioName())
+					.createNode(Feature.class, hook.getFeatureFileNameFromScenarioId())
+					.createNode(Scenario.class, hook.getScenarioName());
+			loginfo = test.createNode(new GherkinKeyword("Given"), "Launch UWA URL");
+			JavascriptExecutor js = (JavascriptExecutor) hook.driver;
+			js.executeScript(url);
+			loginfo.log(Status.PASS, "URL Launched successfully");
+			String Browser = System.getProperty("browserType");
+			String BrowserOption = System.getProperty("chromeOptionsArg");
+			loginfo.log(Status.INFO, "Browser Type : " + Browser);
+			if ("--headless".equalsIgnoreCase(BrowserOption)) {
+				loginfo.log(Status.INFO, "Browser Option :" + BrowserOption);
+			}
+		} catch (Exception e) {
+			fname = hook.cm.addScreenshot(testContext);
+			loginfo.log(Status.FAIL, "URL not launched successfully");
+			loginfo.addScreenCaptureFromPath(fname);
+
+		}
+
+	}
+
+	@And("^Search Header fields should display$")
+	public void SearchHeaderFieldsShouldDisplay(DataTable dt) throws Exception {
+		ExtentTest loginfo = null;
+		try {
+			loginfo = test.createNode(new GherkinKeyword("And"), "Search Header fields should display");
+			List<String> list = dt.asList(String.class);
+
+			for (int j = 0; j < list.size(); j++) {
+
+				if (list.get(j).equalsIgnoreCase(hook.mp.Mypipelinepage_SearchOptions_list.get(j).getText())) {
+					loginfo.log(Status.PASS, "Search Header field displayed : "
+							+ hook.mp.Mypipelinepage_SearchOptions_list.get(j).getText());
+				} else {
+					loginfo.log(Status.FAIL, MarkupHelper
+							.createLabel("Search Header field not displayed : " + list.get(j), ExtentColor.RED));
+				}
+			}
+			if (list.size() == hook.mp.Mypipelinepage_SearchOptions_list.size()) {
+				loginfo.log(Status.PASS, "All the search header fields displayed");
+			} else {
+				loginfo.log(Status.FAIL, "All the search header fields not displayed");
+			}
+
+		} catch (Exception e) {
+			fname = hook.cm.addScreenshot(testContext);
+			loginfo.log(Status.FAIL, e.getMessage());
+			loginfo.addScreenCaptureFromPath(fname);
+
+		}
+
+	}
+
+	@Then("^Data Grid Headers should display$")
+	public void DataGridHeadersShouldDisplay(DataTable dt) throws Exception {
+		ExtentTest loginfo = null;
+		try {
+			loginfo = test.createNode(new GherkinKeyword("Then"), "Data Grid Headers should display");
+			List<String> list = dt.asList(String.class);
+			for (int j = 0; j < list.size(); j++) {
+				if (list.get(j).equalsIgnoreCase(hook.mp.Mypipelinepage_GridHeader_list.get(j).getText())) {
+					loginfo.log(Status.PASS,
+							"Grid Header field displayed : " + hook.mp.Mypipelinepage_GridHeader_list.get(j).getText());
+
+				} else {
+					loginfo.log(Status.FAIL, MarkupHelper
+							.createLabel("Grid Header field not displayed : " + list.get(j), ExtentColor.RED));
+				}
+			}
+			if (list.size() == hook.mp.Mypipelinepage_GridHeader_list.size()) {
+				loginfo.log(Status.PASS, "All the Grid header fields displayed");
+			} else {
+				loginfo.log(Status.FAIL, "All the Grid header fields not displayed");
+			}
+
+		} catch (Exception e) {
+			fname = hook.cm.addScreenshot(testContext);
+			loginfo.log(Status.FAIL, e.getMessage());
+			loginfo.addScreenCaptureFromPath(fname);
+
+		}
+
+	}
+
+	@Then("^MENU and Pipeline should display in left Panel$")
+	public void MENUandPipelineshoulddisplayonleftside(DataTable dt) throws Exception {
+		ExtentTest loginfo = null;
+		try {
+			loginfo = test.createNode(new GherkinKeyword("Then"), "MENU and Pipeline should display in left Panel");
+			List<Map<String, String>> data = dt.asMaps(String.class, String.class);
+			Assert.assertTrue(hook.mp.Mypipelinepage_Logo.isDisplayed()
+					&& hook.mp.Mypipelinepage_Pipeline_Folder_icon.isDisplayed()
+					&& data.get(0).get("PanelHeading1")
+							.equalsIgnoreCase(hook.mp.Mypipelinepage_LeftPanel_Headings.get(0).getText())
+					&& data.get(0).get("PanelHeading2")
+							.equalsIgnoreCase(hook.mp.Mypipelinepage_LeftPanel_Headings.get(1).getText())
+					&& data.get(0).get("PanelHeading3")
+							.equalsIgnoreCase(hook.mp.Mypipelinepage_LeftPanel_Headings.get(2).getText()));
+			loginfo.log(Status.PASS, "Logo displayed and Folder icon displayed adjucent to pipeline section");
+			loginfo.log(Status.PASS,
+					"Left panel Heading displayed properly :" + "<br />"
+							+ hook.mp.Mypipelinepage_LeftPanel_Headings.get(0).getText() + "<br />"
+							+ hook.mp.Mypipelinepage_LeftPanel_Headings.get(1).getText() + "<br />"
+							+ hook.mp.Mypipelinepage_LeftPanel_Headings.get(2).getText());
+			if (data.get(0).get("Section").equalsIgnoreCase(hook.mp.Mypipelinepage_Menu_section.getText())
+					&& data.get(0).get("Page Header").equals(hook.mp.Mypipelinepage_Logo_text.getText())) {
+				loginfo.log(Status.PASS,
+						"Page Header displayed successfully : " + hook.mp.Mypipelinepage_Logo_text.getText());
+				loginfo.log(Status.PASS,
+						"Menu section displayed successfully" + hook.mp.Mypipelinepage_Menu_section.getText());
+			} else {
+				loginfo.log(Status.FAIL, "Menu section and page Header are not displayed");
+			}
+			if (hook.mp.Mypipelinepage_Menu_section.getCssValue("text-transform").equalsIgnoreCase("uppercase")) {
+				loginfo.log(Status.PASS, "MENU section displayed in upper case");
+			} else {
+				loginfo.log(Status.FAIL, "Menu section not displayed in upper case"
+						+ hook.mp.Mypipelinepage_LeftPanel_Headings.get(1).getCssValue("text-transform"));
+			}
+			if (hook.mp.Mypipelinepage_Menu_section.getCssValue("padding-left").isEmpty()
+					&& hook.mp.Mypipelinepage_LeftPanel_Headings.get(1).getCssValue("padding-left").isEmpty()) {
+				loginfo.log(Status.FAIL, "Menu and pipeline sections not displayed in Left panel");
+			} else {
+				loginfo.log(Status.PASS, "Menu and pipeline sections successfully displayed in Left Panel");
+			}
+		} catch (AssertionError e) {
+			fname = hook.cm.addScreenshot(testContext);
+			loginfo.log(Status.FAIL, "Verify Logo,Folder Icon,Left panel Headings" + e.getMessage());
+			loginfo.addScreenCaptureFromPath(fname);
+		} catch (Exception e) {
+			fname = hook.cm.addScreenshot(testContext);
+			loginfo.log(Status.FAIL, e.getMessage());
+			loginfo.addScreenCaptureFromPath(fname);
+
+		}
+
+	}
+
+	@And("^Tabs should display in Mypipeline page$")
+	public void TabsShouldDisplayInMypipelinePage(DataTable dt) throws Exception {
+		ExtentTest loginfo = null;
+		try {
+			loginfo = test.createNode(new GherkinKeyword("And"), "Tabs should display in Mypipeline page");
+			List<String> list = dt.asList(String.class);
+			Assert.assertTrue(
+					list.get(0).equalsIgnoreCase(hook.mp.Mypipelinepage_TabActiveInActive_list.get(0).getText()) && list
+							.get(1).equalsIgnoreCase(hook.mp.Mypipelinepage_TabActiveInActive_list.get(1).getText()));
+			loginfo.log(Status.PASS,
+					"Tab displayed  : " + hook.mp.Mypipelinepage_TabActiveInActive_list.get(0).getText());
+			loginfo.log(Status.PASS,
+					"Tab displayed  : " + hook.mp.Mypipelinepage_TabActiveInActive_list.get(1).getText());
+		} catch (AssertionError e) {
+			fname = hook.cm.addScreenshot(testContext);
+			loginfo.log(Status.FAIL, "Verify Tabs displayed in mypipeline" + e.getMessage());
+			loginfo.addScreenCaptureFromPath(fname);
+		}
+	}
+
+	@Then("^Verify the sorting icons for grid headers$")
+	public void Verifythesortingiconsforgridheaders() throws Exception {
+		ExtentTest loginfo = null;
+		try {
+			loginfo = test.createNode(new GherkinKeyword("Then"), "Verify the sorting icons for grid headers");
+			hook.wait.until(ExpectedConditions
+					.visibilityOfAllElements(hook.mp.Mypipelinepage_GridHeader_Asscending_Sorting_icon));
+			Assert.assertTrue(hook.mp.Mypipelinepage_GridHeader_Asscending_Sorting_icon.get(1).getCssValue("color")
+					.substring(5, 19).equals("76, 80, 172, 1")
+					&& hook.mp.Mypipelinepage_GridHeader_Asscending_Sorting_icon
+							.size() == (hook.mp.Mypipelinepage_GridHeader_list.size()));
+			loginfo.log(Status.PASS, "Sorting Icons displayed for all the Grid headers");
+			loginfo.log(Status.PASS, "By default Sorting icon color highlighted at Borrower name properly");
+		} catch (AssertionError e) {
+			fname = hook.cm.addScreenshot(testContext);
+			loginfo.log(Status.FAIL,
+					"Verify Sorting Icon and By default sorting highlighted at Borrower name" + e.getMessage());
+			loginfo.addScreenCaptureFromPath(fname);
+
+		}
+
+	}
+	
+	@And("^Verify bydefault Borrower Lastname is displayed in ASC order$")
+	public void VerifybydefaultBorrowerLastnameisdisplayedinASCorder() throws Exception {
+		ExtentTest loginfo = null;
+		try {
+			loginfo = test.createNode(new GherkinKeyword("And"),
+					"Verify bydefault Borrower Lastname is displayed in ASC order");
+			List<String> list = new ArrayList<String>();
+			for (int i = 0; i < hook.mp.Mypipelinepage_Grid_BarrowerName_Data_list.size(); i++) {
+				list.add(hook.mp.Mypipelinepage_Grid_BarrowerName_Data_list.get(i).getText());
+			}
+			Assert.assertTrue(Ordering.natural().isOrdered(list));
+			loginfo.log(Status.PASS, "By Default the Borrower names are displayed in Ascending order");
+		} catch (AssertionError e) {
+			fname = hook.cm.addScreenshot(testContext);
+			loginfo.log(Status.FAIL,
+					"Verify by Default the Borrower names are displayed in Ascending order" + e.getMessage());
+			loginfo.addScreenCaptureFromPath(fname);
+		} catch (Exception e) {
+			fname = hook.cm.addScreenshot(testContext);
+			loginfo.log(Status.FAIL, e.getMessage());
+			loginfo.addScreenCaptureFromPath(fname);
+
+		}
+
+	}
+
+	@Then("^Click on Borrower sort-icon and verify sorted in DSC order$")
+	public void ClickonBorrowersorticonandverifysortedinDSCASCorder() throws Exception {
+		ExtentTest loginfo = null;
+		try {
+			loginfo = test.createNode(new GherkinKeyword("Then"),
+					"Click on Borrower sort-icon and verify sorted in DSC order");
+			hook.wait.until(ExpectedConditions
+					.visibilityOfAllElements(hook.mp.Mypipelinepage_GridHeader_Asscending_Sorting_icon));
+			hook.mp.Mypipelinepage_GridHeader_Asscending_Sorting_icon.get(1).click();
+			hook.actions.pause(3000).build().perform();
+			List<String> list = new ArrayList<String>();
+			for (int i = 0; i < hook.mp.Mypipelinepage_Grid_BarrowerName_Data_list.size(); i++) {
+				list.add(hook.mp.Mypipelinepage_Grid_BarrowerName_Data_list.get(i).getText());
+			}
+			boolean sorted = Ordering.natural().isOrdered(list);
+			if (sorted != true) {
+				loginfo.log(Status.PASS,
+						"By clicking one Borrower sort icon first time Borrower name sorted in DSC order");
+			} else {
+				loginfo.log(Status.FAIL,
+						"By clicking one Borrower sort icon first time Borrower name not sorted in DSC order");
+			}
+		} catch (Exception e) {
+			fname = hook.cm.addScreenshot(testContext);
+			loginfo.log(Status.FAIL, e.getMessage());
+			loginfo.addScreenCaptureFromPath(fname);
+		}
+	}
+
+	@And("^Again click on Borrower sort-icon and verify sorted in ASC order$")
+	public void AgainclickonBorrowersorticonandverifysortedinASCorder() throws Exception {
+		ExtentTest loginfo = null;
+		try {
+			loginfo = test.createNode(new GherkinKeyword("And"),
+					"Again click on Borrower sort-icon and verify sorted in ASC order");
+			hook.wait.until(ExpectedConditions
+					.visibilityOfAllElements(hook.mp.Mypipelinepage_GridHeader_Asscending_Sorting_icon));
+			hook.mp.Mypipelinepage_GridHeader_Asscending_Sorting_icon.get(1).click();
+			hook.actions.pause(3000).build().perform();
+			List<String> list = new ArrayList<String>();
+			for (int i = 0; i < hook.mp.Mypipelinepage_Grid_BarrowerName_Data_list.size(); i++) {
+				list.add(hook.mp.Mypipelinepage_Grid_BarrowerName_Data_list.get(i).getText());
+			}
+			boolean sorted = Ordering.natural().isOrdered(list);
+			if (sorted == true) {
+				loginfo.log(Status.PASS,
+						"By clicking one Borrower sort icon second time Borrower name sorted in ASC order");
+			} else {
+				loginfo.log(Status.FAIL,
+						"By clicking one Borrower sort icon second time Borrower name not sorted in ASC order");
+			}
+		} catch (Exception e) {
+			fname = hook.cm.addScreenshot(testContext);
+			loginfo.log(Status.FAIL, e.getMessage());
+			loginfo.addScreenCaptureFromPath(fname);
+		}
+	}
+
+	@When("^Click on Tab \"(.*)\"$")
+	public void ClickonTabActiveInActive(String tab) throws Exception {
+		ExtentTest loginfo = null;
+		try {
+			loginfo = test.createNode(new GherkinKeyword("When"), "Click on Tab " + tab);
+			hook.wait.until(ExpectedConditions.visibilityOfAllElements(hook.mp.Mypipelinepage_TabActiveInActive_list));
+			for (int i = 0; i < hook.mp.Mypipelinepage_TabActiveInActive_list.size(); i++) {
+				if (hook.mp.Mypipelinepage_TabActiveInActive_list.get(i).getText().equalsIgnoreCase(tab)) {
+					loginfo.log(Status.PASS, "Successfull clicked on Tab : "
+							+ hook.mp.Mypipelinepage_TabActiveInActive_list.get(i).getText());
+					hook.mp.Mypipelinepage_TabActiveInActive_list.get(i).click();
+					break;
+				}
+			}
+		} catch (Exception e) {
+			fname = hook.cm.addScreenshot(testContext);
+			loginfo.log(Status.FAIL, e.getMessage());
+			loginfo.addScreenCaptureFromPath(fname);
+		}
+	}
+
+	@And("^Loan Landing page display Breadcrumb links and icons$")
+	public void LoanLandingpagedisplayBreadcrumblinksandicond(DataTable dt) throws Exception {
+		ExtentTest loginfo = null;
+		try {
+			loginfo = test.createNode(new GherkinKeyword("And"),
+					"Loan Landing page display Breadcrumb links and icons");
+			hook.wait.until(ExpectedConditions.visibilityOfAllElements(hook.lp.LoanLandingPage_BreadcrumbLinks_list));
+			List<String> list = dt.asList(String.class);
+			Assert.assertTrue(list.get(0)
+					.equalsIgnoreCase(hook.lp.LoanLandingPage_BreadcrumbLinks_list.get(0).getText())
+					&& list.get(1).equalsIgnoreCase(hook.lp.LoanLandingPage_BreadcrumbLinks_list.get(1).getText())
+					&& list.get(2).equalsIgnoreCase(hook.lp.LoanLandingPage_Breadcrumb_LoanNumber.getText())
+					&& list.get(3).equalsIgnoreCase(hook.lp.LoanLandingPage_UserClock_icon.getAttribute("data-icon"))
+					&& list.get(4).equalsIgnoreCase(hook.lp.LoanLandingPage_Triangle_icon.getAttribute("data-icon")));
+			loginfo.log(Status.PASS,
+					"Successfully Breadcrumb links displayed :" + "<br />"
+							+ hook.lp.LoanLandingPage_BreadcrumbLinks_list.get(0).getText() + "<br />"
+							+ hook.lp.LoanLandingPage_BreadcrumbLinks_list.get(1).getText());
+			loginfo.log(Status.PASS, "Successfully Loan number displayed in Breadcrumb :" + "<br />"
+					+ hook.lp.LoanLandingPage_Breadcrumb_LoanNumber.getText());
+			loginfo.log(Status.PASS,
+					"Successfully all icons displayed :" + "<br />"
+							+ hook.lp.LoanLandingPage_UserClock_icon.getAttribute("data-icon") + "<br />"
+							+ hook.lp.LoanLandingPage_Triangle_icon.getAttribute("data-icon"));
+		} catch (AssertionError e) {
+			fname = hook.cm.addScreenshot(testContext);
+			loginfo.log(Status.FAIL, "Verify Breadcrumb,Loan number and Icons display " + e.getMessage());
+			loginfo.addScreenCaptureFromPath(fname);
+
+		}
+
+	}
+
+	@And("^User able to view the Information details$")
+	public void UserabletoviewtheInformationdetails(DataTable dt) throws Exception {
+		ExtentTest loginfo = null;
+		try {
+			loginfo = test.createNode(new GherkinKeyword("And"), "User able to view the Information details");
+			hook.wait.until(ExpectedConditions.visibilityOfAllElements(hook.lp.LoanLandingPage_BreadcrumbLinks_list));
+			List<Map<String, String>> data = dt.asMaps(String.class, String.class);
+			Assert.assertTrue(data.get(0).get("Borrower Info").equalsIgnoreCase(
+					hook.lp.LoanLandingPage_SideInfoheading_list.get(0).getText()) && data.get(0).get("Borrower Info value").equalsIgnoreCase(
+					hook.lp.LoanLandingPage_SideInfovalue_list.get(0).getText()) && data.get(1).get("Borrower Info").equalsIgnoreCase(
+					hook.lp.LoanLandingPage_SideInfoheading_list.get(1).getText()) && data.get(1).get("Borrower Info value").equalsIgnoreCase(
+					hook.lp.LoanLandingPage_SideInfovalue_list.get(1).getText()));
+					loginfo.log(Status.PASS, "Successfully Borrower information displayed :");
+			for (int i = 0; i < hook.lp.LoanLandingPage_SideInfoheading_list.size(); i++) {
+				loginfo.log(Status.PASS, "" + hook.lp.LoanLandingPage_SideInfoheading_list.get(i).getText());
+				loginfo.log(Status.PASS, "" + hook.lp.LoanLandingPage_SideInfovalue_list.get(i).getText());
+			}
+		} catch (AssertionError e) {
+			fname = hook.cm.addScreenshot(testContext);
+			loginfo.log(Status.FAIL,"Verify Borrower Information"+ e.getMessage());
+			loginfo.addScreenCaptureFromPath(fname);
+		}
+		catch (Exception e) {
+			fname = hook.cm.addScreenshot(testContext);
+			loginfo.log(Status.FAIL, e.getMessage());
+			loginfo.addScreenCaptureFromPath(fname);
+
+		}
+
+	}
+
+	@And("^Information headers displayed in loan landing page$")
+	public void Informationheadersdisplayedinloanlandingpage(DataTable dt) throws Exception {
+		ExtentTest loginfo = null;
+		try {
+			loginfo = test.createNode(new GherkinKeyword("And"), "Information headers displayed in loan landing page");
+			hook.wait.until(ExpectedConditions.visibilityOfAllElements(hook.lp.LoanLandingPage_InfoHeaders_list));
+			List<String> list = dt.asList(String.class);
+			loginfo.log(Status.PASS, "All Information Headers displayed in Loand landing page:");
+			for (int i = 0; i < hook.lp.LoanLandingPage_InfoHeaders_list.size(); i++) {
+				if (list.get(i).equalsIgnoreCase(hook.lp.LoanLandingPage_InfoHeaders_list.get(i).getText())) {
+					loginfo.log(Status.PASS, "" + hook.lp.LoanLandingPage_InfoHeaders_list.get(i).getText());
+
+				} else {
+					loginfo.log(Status.FAIL, "Information Headers are  not displayed"
+							+ hook.lp.LoanLandingPage_InfoHeaders_list.get(i).getText());
+				}
+			}
+		} catch (Exception e) {
+			fname = hook.cm.addScreenshot(testContext);
+			loginfo.log(Status.FAIL, e.getMessage());
+			loginfo.addScreenCaptureFromPath(fname);
+		}
+	}
+
+	@And("^Tabs displayed in Loan landing page$")
+	public void TabsdisplayedinLoanlandingpage(DataTable dt) throws Exception {
+		ExtentTest loginfo = null;
+		try {
+			loginfo = test.createNode(new GherkinKeyword("And"), "Tabs displayed in Loan landing page");
+			hook.wait.until(ExpectedConditions.visibilityOfAllElements(hook.lp.LoanLandingPage_Tabs_list));
+			List<String> list = dt.asList(String.class);
+			loginfo.log(Status.PASS, "Tabs displayed in Loan Landing page :");
+			for (int i = 0; i < hook.lp.LoanLandingPage_Tabs_list.size(); i++) {
+				if (list.get(i).equalsIgnoreCase(hook.lp.LoanLandingPage_Tabs_list.get(i).getText())) {
+					loginfo.log(Status.PASS, "" + "<br />" + hook.lp.LoanLandingPage_Tabs_list.get(i).getText());
+
+				} else {
+					loginfo.log(Status.FAIL, "Tabs are not displayed in Loand landing page: "
+							+ hook.lp.LoanLandingPage_Tabs_list.get(i).getText());
+				}
+			}
+		} catch (Exception e) {
+			fname = hook.cm.addScreenshot(testContext);
+			loginfo.log(Status.FAIL, e.getMessage());
+			loginfo.addScreenCaptureFromPath(fname);
+		}
+	}
+	
+	
+}
+
+--end genric steo--
+
+--start hooks--\
+package com.bki.ot.uwa.automation.stepdefinitions;
+
+import java.util.concurrent.TimeUnit;
+import org.openqa.selenium.JavascriptExecutor;
+import org.openqa.selenium.WebDriver;
+import org.openqa.selenium.interactions.Actions;
+import org.openqa.selenium.support.ui.WebDriverWait;
+import com.aventstack.extentreports.ExtentReports;
+import com.aventstack.extentreports.ExtentTest;
+import com.bki.ot.uwa.automation.extentreport.ExtentReportConfig;
+import com.bki.ot.uwa.automation.pageobjects.GenericPage;
+import com.bki.ot.uwa.automation.pageobjects.LoanLandingPage;
+import com.bki.ot.uwa.automation.pageobjects.MyPipelinePage;
+import com.bki.ot.uwa.automation.testcontext.TestContext;
+import io.cucumber.core.api.Scenario;
+import io.cucumber.java.After;
+import io.cucumber.java.Before;
+
+public class Hooks extends ExtentReportConfig {
+
+	TestContext textContext;
+	WebDriver driver;
+	public static ExtentTest test;
+	public Scenario scenario;
+	public static String currentscenario;
+	public static String featureName;
+	public JavascriptExecutor js;
+	public WebDriverWait wait;
+	public Actions actions;
+	public static ExtentReports extent = null;
+	String url = null;
+	GenericPage gp;
+	MyPipelinePage mp;
+	CommonMethods cm;
+	LoanLandingPage lp;
+
+	public Hooks(TestContext textContext) {
+		this.textContext = textContext;
+		driver = textContext.getBaseConfigInstance().getDriver();
+		gp = textContext.getPageObjectManagerInstance().getGenericPage();
+		mp = textContext.getPageObjectManagerInstance().getmyPipelinePage();
+		cm = textContext.getPageObjectManagerInstance().getCommonMethods();
+		lp = textContext.getPageObjectManagerInstance().getloanLandingPage();
+		wait = new WebDriverWait(textContext.getBaseConfigInstance().getDriver(), 100);
+		actions = new Actions(textContext.getBaseConfigInstance().getDriver());
+	}
+
+	@Before
+	public void setup(Scenario scenario) {
+		try {
+			this.scenario = scenario;
+			currentscenario = scenario.getName();
+			String rawFeatureName = scenario.getId().split(";")[0].replace("-", " ");
+			featureName = rawFeatureName.substring(0, 1).toUpperCase() + rawFeatureName.substring(1);
+			extent = extentRepotSetup();
+			driver.manage().window().maximize();
+			driver.manage().timeouts().implicitlyWait(30, TimeUnit.SECONDS);
+			driver.manage().timeouts().pageLoadTimeout(30, TimeUnit.SECONDS);
+			driver.manage().timeouts().implicitlyWait(30, TimeUnit.SECONDS);
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+	}
+
+	public String getScenarioName() {
+		return currentscenario;
+	}
+
+	public String getFeatureFileNameFromScenarioId() {
+		return featureName;
+	}
+
+	@After
+	public void DriverClose() {
+		if (driver != null) {
+			driver.quit();
+		}
+		extent.flush();
+	}
+}
+
+
+--end hooks--
+
+
+--starte userlogin steddef--
+	package com.bki.ot.uwa.automation.stepdefinitions;
+
+import org.openqa.selenium.support.ui.ExpectedConditions;
+import com.aventstack.extentreports.ExtentTest;
+import com.aventstack.extentreports.GherkinKeyword;
+import com.aventstack.extentreports.Status;
+import com.aventstack.extentreports.markuputils.ExtentColor;
+import com.aventstack.extentreports.markuputils.MarkupHelper;
+import com.bki.ot.uwa.automation.extentreport.ExtentReportConfig;
+import com.bki.ot.uwa.automation.filereadermanager.FileReaderManager;
+import com.bki.ot.uwa.automation.testcontext.TestContext;
+import io.cucumber.java.en.Given;
+import io.cucumber.java.en.Then;
+
+public class UserLoginStepDef extends ExtentReportConfig {
+
+	Hooks hook;
+	TestContext testContext;
+	String url = null;
+	public static String fname;
+	
+	public UserLoginStepDef(TestContext context) {
+		testContext = context;
+		hook = new Hooks(context);
+		url = FileReaderManager.getFileReaderManagerInstance().getConfigInstance().getUrl();
+
+	}
+
+	@Given("^User enters \"(.*)\" \"(.*)\"$")
+	public void UserentersUsernameAndPassword(String username, String password) throws Exception {
+		ExtentTest loginfo = null;
+		try {
+			loginfo = test.createNode(new GherkinKeyword("Given"), "User enters " + username + password);
+			hook.actions.pause(8000).build().perform();
+			hook.wait.until(ExpectedConditions.visibilityOf(hook.gp.GenericPage_Username));
+			hook.gp.GenericPage_Username.sendKeys(username);
+			hook.wait.until(ExpectedConditions.visibilityOf(hook.gp.GenericPage_Password));
+			hook.gp.GenericPage_Password.sendKeys(password);
+			loginfo.log(Status.INFO, username + " " + password);
+			hook.actions.pause(3000).build().perform();
+			loginfo.log(Status.PASS, "Successfully entered Username and password ");
+		} catch (Exception e) {
+			fname = hook.cm.addScreenshot(testContext);
+			loginfo.log(Status.FAIL, e.getMessage());
+			loginfo.addScreenCaptureFromPath(fname);
+
+		}
+
+	}
+	
+	@Given("^Click on Logout in mypipeline page$")
+	public void ClickonLogoutinmypipelinepage() throws Exception {
+		ExtentTest loginfo = null;
+		try {
+			loginfo = test.createNode(new GherkinKeyword("Given"), "Click on Logout in mypipeline page");
+			hook.wait.until(ExpectedConditions.visibilityOf(hook.gp.GenericPage_UserName_dropdown_option));
+			hook.gp.GenericPage_UserName_dropdown_option.click();
+			hook.wait.until(ExpectedConditions.visibilityOf(hook.gp.GenericPage_Logout));
+			hook.gp.GenericPage_Logout.click();
+			hook.actions.pause(3000).build().perform();
+			if(hook.gp.GenericPage_Signout_page.getText().contains("Sign out")) {
+				loginfo.log(Status.PASS, "User successfully Logged out ");
+			}
+			else
+				{loginfo.log(Status.FAIL, "User not logged out ");
+								}
+		} catch (Exception e) {
+			fname = hook.cm.addScreenshot(testContext);
+			loginfo.log(Status.FAIL, e.getMessage());
+			loginfo.addScreenCaptureFromPath(fname);
+
+		}
+
+	}
+	
+	@Then("^Verify home page and error message for Invalid credentials$")
+	public void VerifyhomepageanderrormessageforInvalidcredentials() throws Exception {
+		ExtentTest loginfo = null;
+		try {
+			loginfo = test.createNode(new GherkinKeyword("Then"),
+					"Verify home page and error message for Invalid credentials");
+			try {
+				if (hook.gp.GenericPage_LoginError_Msg.isDisplayed()) {
+					fname = hook.cm.addScreenshot(testContext);
+					loginfo.log(Status.INFO,
+							"Invalid Login Credentials Provided : " + hook.gp.GenericPage_LoginError_Msg.getText());
+					loginfo.addScreenCaptureFromPath(fname);
+				} else {
+					hook.wait.until(ExpectedConditions.visibilityOf(hook.gp.GenericPage_Logout));
+					fname = hook.cm.addScreenshot(testContext);
+					loginfo.log(Status.PASS, "Successfully logged in with valid crendentials");
+					loginfo.addScreenCaptureFromPath(fname);
+					hook.wait.until(ExpectedConditions.elementToBeClickable(hook.gp.GenericPage_Logout));
+					hook.gp.GenericPage_Logout.click();
+					loginfo.log(Status.PASS, "Valid Login Credentials Case Pass");
+				}
+			} catch (Exception e) {
+
+				hook.wait.until(ExpectedConditions.visibilityOf(hook.gp.GenericPage_Logout));
+				hook.wait.until(ExpectedConditions.elementToBeClickable(hook.gp.GenericPage_Logout));
+				hook.gp.GenericPage_Logout.click();
+				fname = hook.cm.addScreenshot(testContext);
+				loginfo.log(Status.PASS, "Login Successful");
+				loginfo.addScreenCaptureFromPath(fname);
+				loginfo.pass(MarkupHelper.createLabel("User Logged in Successfully", ExtentColor.GREEN));
+				loginfo.pass(MarkupHelper.createLabel("Valid Login Credentials Case Pass", ExtentColor.GREEN));
+			}
+		} catch (Exception e) {
+			fname = hook.cm.addScreenshot(testContext);
+			loginfo.addScreenCaptureFromPath(fname);
+			loginfo.log(Status.FAIL, e.getMessage());
+		}
+	}
+
+	@Given("^User Login$")
+	public void UserLogin() throws Exception {
+		ExtentTest loginfo = null;
+		try {
+			loginfo = test.createNode(new GherkinKeyword("Then"),
+					"User Login");
+			hook.wait.until(ExpectedConditions.visibilityOf(hook.gp.GenericPage_Username));
+			hook.gp.GenericPage_Username.sendKeys(FileReaderManager.getFileReaderManagerInstance().getConfigInstance().getUserName());
+						hook.wait.until(ExpectedConditions.visibilityOf(hook.gp.GenericPage_Password));
+					hook.gp.GenericPage_Password.sendKeys(FileReaderManager.getFileReaderManagerInstance().getConfigInstance().getPassword());
+			hook.wait.until(ExpectedConditions.elementToBeClickable(hook.gp.GenericPage_Signin_button));
+			hook.gp.GenericPage_Signin_button.click();
+			loginfo.log(Status.INFO, "Successfully logged in as user : " +FileReaderManager.getFileReaderManagerInstance().getConfigInstance().getUserName() );
+			
+		} catch (Exception e) {
+			fname = hook.cm.addScreenshot(testContext);
+			loginfo.addScreenCaptureFromPath(fname);
+			loginfo.log(Status.FAIL, e.getMessage());
+		}
+	}
+
+	
+
+
+}
+
+--end user step--
+
+---start text config--
+package com.bki.ot.uwa.automation.testcontext;
+
+import com.bki.ot.uwa.automation.baseconfig.BaseConfig;
+import com.bki.ot.uwa.automation.pageobjectmanager.PageObjectManager;
+
+public class TestContext {
+
+	private PageObjectManager pageObjectManager;
+	private BaseConfig baseConfig;
+
+	public TestContext() {
+		baseConfig = new BaseConfig();
+		pageObjectManager = new PageObjectManager(baseConfig.getDriver());
+	}
+
+	public BaseConfig getBaseConfigInstance() {
+		return baseConfig;
+	}
+
+	public PageObjectManager getPageObjectManagerInstance() {
+		return pageObjectManager;
+	}
+}
+
+--end text congif--
+
+---start test runner-
+package com.bki.ot.uwa.automation.testrunner;
+
+import org.testng.annotations.DataProvider;
+//import org.testng.annotations.Test;
+
+import io.cucumber.testng.AbstractTestNGCucumberTests;
+import io.cucumber.testng.CucumberOptions;
+
+@CucumberOptions(features = "src\\test\\resources\\UWAFeatures\\", glue = {
+		"com/bki/ot/uwa/automation/stepdefinitions" }, tags = { "@iebrowser" }, 
+				//plugin = { "pretty","html:target/cucumber-reports", "junit:target/cucumber-reports/Cucumber.xml" },
+ monochrome = true)
+public class UARunnerTest extends AbstractTestNGCucumberTests {
+	@Override
+	@DataProvider(parallel = false)
+	public Object[][] scenarios() {
+		return super.scenarios();
+	}
+
+}
+
+
+--end runner--
+
+--srta config.prpr---
+
+url = window.location ='https://qa1.qa.uwa.bkiclouddev.com'
+#https://sb1.dev.uwa.bkiclouddev.com'
+driverPath=src\\test\\resources\\Drivers\\msedgedriver.exe
+uploadfile=DI-C01_v3.4XML.xml
+uploadDoc1=Incomedoc.pdf
+uploadDoc2=w2.pdf
+username=e1209797@uwadev
+password=Uwaqa@123
+
+
+--end prop---
+
+---login feture--
+Feature: User Login
+
+  Background: Launching Application URL
+    Given Launch UWA URL
+
+  @smoke @login
+  Scenario Outline: Verify login functionality with Valid and Invalid User credentials
+    When User enters "<username>" "<password>"
+    Then Click on button contains text "Sign in"
+    And Verify home page and error message for Invalid credentials
+
+    Examples: 
+      | username          | password   |
+      | e1209797@uwadev   | Uwaqa@123  |
+      | e1209797@uwadev   | Oct2020$   |
+      |                   | Sep2020$   |
+      |                   |            |
+      | e1209797@uwadev   |            |
+      | e1209797@uwadevnn | Sep2020$$$ |
+
+  @smoke1 @login1
+  Scenario: Verify logout functionality with Valid credentials
+    Given User Login
+    Then Verify user is on "My Pipeline" page
+    And Click on Logout in mypipeline page
+  
+
+  
+  --end login feture--
+  
+  
+  --start import feture--
+  
+  Feature: Import MISMO 3.4 file
+
+  Background: Launching Application URL
+    Given Launch UWA URL
+    And User Login
+    When Verify user is on "My Pipeline" page
+    And Click on New Loan verify pop UploadYourLoanFiles display
+    Then User selects Browse 3.4 file
+
+  @smoke @import 
+  Scenario: Validate ability to Import data file Browse Option
+    Then Verify Upload pop up options
+      | upload | Drop more loan files here, or browse | browse | Your Uploads | SAVE | CANCEL |
+    And Click on button contains text "SAVE"
+
+  @smoke @import  
+  Scenario: Verify  Delete option in delete popper and able to delete an Individual file
+    When User clicks on delete icon in Upload pop up
+    Then Verify Delete pop up display message and buttons
+      | CANCEL | DELETE | Are you sure you want to Delete this file? |
+    When Click on button contains text "DELETE"
+    Then Delete popper closed and file deleted in upload popup
+
+  @smoke @import 
+  Scenario: Verify Cancel option in delete popper and able to cancel an Individual file
+    When User clicks on delete icon in Upload pop up
+    Then Verify Delete pop up display message and buttons
+      | CANCEL | DELETE | Are you sure you want to delete this file? |
+    When Click on button contains text "CANCEL"
+    Then Delete popper closed and file remained same
+
+   @smoke @import @iebrowser
+  Scenario: Verify upload collapse mode when file uploaded and Expand mode when file deleted
+   When Verify upload selection area is in collapse mode
+    When User clicks on delete icon in Upload pop up
+    And Click on button contains text "DELETE"
+    Then Verify upload selection area is in Expanded mode
+    
+    ---end import feture--
+  
